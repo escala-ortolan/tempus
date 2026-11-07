@@ -13,6 +13,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.Rating
+import androidx.media3.common.StarRating
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaLibraryService
@@ -22,11 +23,14 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.eddyizm.tempus.App
 import com.eddyizm.tempus.R
+import com.eddyizm.tempus.interfaces.RatingCallback
+import com.eddyizm.tempus.repository.RatingRepository
 import com.eddyizm.tempus.subsonic.base.ApiResponse
 import com.eddyizm.tempus.subsonic.models.ResponseStatus
 import com.eddyizm.tempus.util.Constants
 import com.eddyizm.tempus.util.Preferences
 import com.eddyizm.tempus.util.FavoriteRegistry
+import com.eddyizm.tempus.util.RatingRegistry
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -115,6 +119,33 @@ open class BaseSessionCallback(
             .build()
 
     @Suppress("DEPRECATION")
+    private val customCommandToggleDislikeOn =
+        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setDisplayName(context.getString(R.string.exo_controls_dislike_on_description))
+            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_ON, Bundle.EMPTY))
+            .setIconResId(R.drawable.ic_thumb_down)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
+            .build()
+
+    @Suppress("DEPRECATION")
+    private val customCommandToggleDislikeOff =
+        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setDisplayName(context.getString(R.string.exo_controls_dislike_off_description))
+            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_OFF, Bundle.EMPTY))
+            .setIconResId(R.drawable.ic_thumb_down_outlined)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
+            .build()
+
+    @Suppress("DEPRECATION")
+    private val customCommandToggleDislikeLoading =
+        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setDisplayName(context.getString(R.string.cast_expanded_controller_loading))
+            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_LOADING, Bundle.EMPTY))
+            .setIconResId(R.drawable.ic_bookmark_sync)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
+            .build()
+
+    @Suppress("DEPRECATION")
     private val customCommandInstantMixOn =
         CommandButton.Builder(CommandButton.ICON_UNDEFINED)
             .setDisplayName("instantmix on")
@@ -161,6 +192,9 @@ open class BaseSessionCallback(
         customCommandToggleHeartOn,
         customCommandToggleHeartOff,
         customCommandToggleHeartLoading,
+        customCommandToggleDislikeOn,
+        customCommandToggleDislikeOff,
+        customCommandToggleDislikeLoading,
         customCommandInstantMixOn,
         customCommandInstantMixOff
     )
@@ -260,6 +294,10 @@ open class BaseSessionCallback(
                 mainHandler.removeCallbacks(layoutUpdate)
                 mainHandler.post(layoutUpdate)
             }
+            RatingRegistry.onChange = Runnable {
+                mainHandler.removeCallbacks(layoutUpdate)
+                mainHandler.post(layoutUpdate)
+            }
         }
 
         if (session.isMediaNotificationController(controller) ||
@@ -293,9 +331,11 @@ open class BaseSessionCallback(
         session: MediaSession,
         isRatingPending: Boolean = false
     ) {
-        val controller = session.mediaNotificationControllerInfo ?: return
+        // Session-wide so Android Auto / Automotive controllers get the new heart and dislike
+        // state too. Updating only the media notification controller left a connected car head
+        // unit showing the old button until the next track (and made a tapped button look dead).
+        if (session.mediaNotificationControllerInfo == null && session.connectedControllers.isEmpty()) return
         session.setMediaButtonPreferences(
-            controller,
             buildMediaButtonPreferences(session.player, isRatingPending)
         )
     }
@@ -321,6 +361,7 @@ open class BaseSessionCallback(
 
         val allButtons = listOf(
             "[heartID]",
+            "[dislikeID]",
             "[repeatID]",
             "[shuffleID]",
             "[instantMixID]")
@@ -350,6 +391,12 @@ open class BaseSessionCallback(
                 else -> customCommandToggleHeartOff
             }
 
+            "[dislikeID]" -> when {
+                !isCurrentItemMusic(player) || isRatingPending -> null
+                isCurrentItemDisliked(player) -> customCommandToggleDislikeOn
+                else -> customCommandToggleDislikeOff
+            }
+
             "[shuffleID]" -> if (player.shuffleModeEnabled) customCommandToggleShuffleModeOff
             else customCommandToggleShuffleModeOn
 
@@ -371,9 +418,24 @@ open class BaseSessionCallback(
     private fun isCurrentItemStarred(player: Player): Boolean {
         val item = player.currentMediaItem ?: return false
         val itemRating = (player.mediaMetadata.userRating as? HeartRating)?.isHeart == true
-        if (item.mediaMetadata.extras?.getString("type") != Constants.MEDIA_TYPE_MUSIC) return itemRating
+        if (!isCurrentItemMusic(player)) return itemRating
         return FavoriteRegistry.resolve(FavoriteRegistry.Kind.SONG, item.mediaId, itemRating)
     }
+
+    private fun isCurrentItemMusic(player: Player): Boolean {
+        val item = player.currentMediaItem ?: return false
+        return item.mediaMetadata.extras?.getString("type") == Constants.MEDIA_TYPE_MUSIC
+    }
+
+    // The song's extras carry the rating the item was loaded with; a rating made in the app is
+    // held in RatingRegistry until the item is fetched again.
+    private fun currentItemRating(player: Player): Int {
+        val item = player.currentMediaItem ?: return 0
+        val serverRating = item.mediaMetadata.extras?.getInt("userRating", 0) ?: 0
+        return RatingRegistry.resolve(item.mediaId, serverRating)
+    }
+
+    private fun isCurrentItemDisliked(player: Player): Boolean = currentItemRating(player) == RatingRepository.DISLIKE
 
     // ─────────────────────────────────────────────────────────────
     // Rating (heart)
@@ -384,12 +446,11 @@ open class BaseSessionCallback(
         controller: MediaSession.ControllerInfo,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        return onSetRating(
-            session,
-            controller,
-            session.player.currentMediaItem!!.mediaId,
-            rating
-        )
+        val mediaId = session.player.currentMediaItem?.mediaId
+            ?: return Futures.immediateFuture(
+                SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "No current item"))
+            )
+        return onSetRating(session, controller, mediaId, rating)
     }
 
     override fun onSetRating(
@@ -398,7 +459,16 @@ open class BaseSessionCallback(
         mediaId: String,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        val isStarring = (rating as HeartRating).isHeart
+        if (rating is StarRating) {
+            return setSongRating(session, mediaId, rating.starRating.toInt().coerceIn(0, 5))
+        }
+        if (rating !is HeartRating) {
+            return Futures.immediateFuture(
+                SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unsupported rating"))
+            )
+        }
+
+        val isStarring = rating.isHeart
         val record = (0 until session.player.mediaItemCount)
             .map { session.player.getMediaItemAt(it) }
             .firstOrNull { it.mediaId == mediaId }
@@ -453,6 +523,59 @@ open class BaseSessionCallback(
         })
 
         return future
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Rating (1-5 stars; 1 star is the dislike marker)
+    // ─────────────────────────────────────────────────────────────
+
+    private fun setSongRating(
+        session: MediaSession,
+        mediaId: String,
+        rating: Int
+    ): ListenableFuture<SessionResult> {
+        val previousRating = currentItemRating(session.player)
+        val future = SettableFuture.create<SessionResult>()
+
+        // Show the new state before the round trip so the notification and car screen respond to
+        // the tap immediately.
+        updateMediaItemRating(session.player, mediaId, rating)
+        updateMediaNotificationCustomLayout(session, isRatingPending = true)
+
+        RatingRepository().setRating(mediaId, rating, object : RatingCallback {
+            override fun onSuccess() {
+                updateMediaItemRating(session.player, mediaId, rating)
+                updateMediaNotificationCustomLayout(session)
+                future.set(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+
+            override fun onError() {
+                updateMediaItemRating(session.player, mediaId, previousRating)
+                updateMediaNotificationCustomLayout(session)
+                future.set(
+                    SessionResult(
+                        SessionError(SessionError.ERROR_UNKNOWN, "The server refused the change")
+                    )
+                )
+            }
+        })
+
+        return future
+    }
+
+    private fun updateMediaItemRating(player: Player, mediaId: String, rating: Int) {
+        for (i in 0 until player.mediaItemCount) {
+            val mediaItem = player.getMediaItemAt(i)
+            if (mediaItem.mediaId != mediaId) continue
+
+            val extras = mediaItem.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
+            extras.putInt("userRating", rating)
+            val metadata = mediaItem.mediaMetadata.buildUpon().setExtras(extras).build()
+            player.replaceMediaItem(
+                i,
+                mediaItem.buildUpon().setMediaMetadata(metadata).build()
+            )
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -515,6 +638,13 @@ open class BaseSessionCallback(
                 val isCurrentlyLiked = isCurrentItemStarred(session.player)
                 updateMediaNotificationCustomLayout(session, isRatingPending = true)
                 onSetRating(session, controller, HeartRating(!isCurrentlyLiked))
+            }
+            Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_ON,
+            Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_OFF -> {
+                val currentlyDisliked = isCurrentItemDisliked(session.player)
+                val nextRating = if (currentlyDisliked) RatingRepository.NO_RATING
+                else RatingRepository.DISLIKE
+                onSetRating(session, controller, StarRating(5, nextRating.toFloat()))
             }
             else -> Futures.immediateFuture(
                 SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, customCommand.customAction))

@@ -168,6 +168,7 @@
     </string-array>
     <string-array name="custom_commands_titles">
         <item>Hjärta</item>
+        <item>Gillar inte</item>
         <item>Upprepa</item>
         <item>Blanda</item>
         <item>Direktmix</item>

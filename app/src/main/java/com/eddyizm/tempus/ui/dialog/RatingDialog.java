@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.eddyizm.tempus.R;
 import com.eddyizm.tempus.databinding.DialogRatingBinding;
 import com.eddyizm.tempus.util.Constants;
+import com.eddyizm.tempus.util.RatingRegistry;
 import com.eddyizm.tempus.viewmodel.RatingViewModel;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -60,7 +61,7 @@ public class RatingDialog extends DialogFragment {
     private void setRating() {
         if (ratingViewModel.getSong() != null) {
             ratingViewModel.getLiveSong().observe(this, song -> {
-                bind.ratingBar.setRating(song.getUserRating() != null ? song.getUserRating() : 0);
+                bind.ratingBar.setRating(RatingRegistry.resolve(song.getId(), song.getUserRating() != null ? song.getUserRating() : 0));
             });
         } else if (ratingViewModel.getAlbum() != null) {
             ratingViewModel.getLiveAlbum().observe(this, album -> {

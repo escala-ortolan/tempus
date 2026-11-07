@@ -49,7 +49,9 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.eddyizm.tempus.R;
 import com.eddyizm.tempus.databinding.InnerFragmentPlayerControllerBinding;
+import com.eddyizm.tempus.repository.RatingRepository;
 import com.eddyizm.tempus.service.MediaService;
+import com.eddyizm.tempus.subsonic.models.Child;
 import com.eddyizm.tempus.ui.activity.MainActivity;
 import com.eddyizm.tempus.ui.dialog.PlaybackSpeedDialog;
 import com.eddyizm.tempus.ui.dialog.PlaylistChooserDialog;
@@ -66,6 +68,7 @@ import com.eddyizm.tempus.util.Constants;
 import com.eddyizm.tempus.upnp.UpnpPlayer;
 import com.eddyizm.tempus.util.MusicUtil;
 import com.eddyizm.tempus.util.Preferences;
+import com.eddyizm.tempus.util.RatingRegistry;
 import com.eddyizm.tempus.viewmodel.PlayerBottomSheetViewModel;
 import com.eddyizm.tempus.viewmodel.RatingViewModel;
 import com.eddyizm.tempus.util.FavoriteRegistry;
@@ -92,6 +95,7 @@ public class PlayerControllerFragment extends Fragment {
     private boolean renderingRemote;
     private ViewPager2 playerMediaCoverViewPager;
     private ToggleButton buttonFavorite;
+    private ToggleButton buttonDislike;
     private ImageButton playerOverflowButton;
     private RatingViewModel ratingViewModel;
     private RatingBar songRatingBar;
@@ -193,8 +197,11 @@ public class PlayerControllerFragment extends Fragment {
             playbackSpeedButton.setVisibility(View.VISIBLE);
             skipSilenceToggleButton.setVisibility(View.GONE);
             buttonFavorite.setVisibility(View.VISIBLE);
+            buttonDislike.setVisibility(View.VISIBLE);
             var displayedSong = playerBottomSheetViewModel.getLiveMedia().getValue();
-            buttonFavorite.setEnabled(displayedSong != null && Objects.equals(displayedSong.getId(), state.getMediaId()));
+            boolean sameSong = displayedSong != null && Objects.equals(displayedSong.getId(), state.getMediaId());
+            buttonFavorite.setEnabled(sameSong);
+            buttonDislike.setEnabled(sameSong);
             renderingRemote = true;
             try {
                 MediaMetadata metadata = com.eddyizm.tempus.lan.LanPlayerAdapter.metadata(com.eddyizm.tempus.lan.LanRemoteSession.currentSong());
@@ -208,6 +215,7 @@ public class PlayerControllerFragment extends Fragment {
             bind.playerRemoteToggle.setContentDescription(getString(R.string.lan_play_on));
             bind.playerRemoteToggle.setSelected(false);
             buttonFavorite.setEnabled(true);
+            buttonDislike.setEnabled(true);
             MediaBrowser browser = getBrowser();
             if (browser != null) {
                 bind.nowPlayingMediaControllerView.setPlayer(browser);
@@ -221,6 +229,7 @@ public class PlayerControllerFragment extends Fragment {
     private void init() {
         playerMediaCoverViewPager = bind.getRoot().findViewById(R.id.player_media_cover_view_pager);
         buttonFavorite = bind.getRoot().findViewById(R.id.button_favorite);
+        buttonDislike = bind.getRoot().findViewById(R.id.button_dislike);
         playerOverflowButton = bind.getRoot().findViewById(R.id.player_overflow_button);
         playerMediaTitleLabel = bind.getRoot().findViewById(R.id.player_media_title_label);
         playerArtistNameLabel = bind.getRoot().findViewById(R.id.player_artist_name_label);
@@ -714,6 +723,7 @@ public class PlayerControllerFragment extends Fragment {
                     bind.getRoot().findViewById(R.id.player_playback_speed_button).setVisibility(View.VISIBLE);
                     bind.getRoot().findViewById(R.id.player_skip_silence_toggle_button).setVisibility(View.VISIBLE);
                     bind.getRoot().findViewById(R.id.button_favorite).setVisibility(View.GONE);
+                    bind.getRoot().findViewById(R.id.button_dislike).setVisibility(View.GONE);
                     setPlaybackParameters(mediaBrowser);
                     break;
                 case Constants.MEDIA_TYPE_RADIO:
@@ -726,6 +736,7 @@ public class PlayerControllerFragment extends Fragment {
                     bind.getRoot().findViewById(R.id.player_playback_speed_button).setVisibility(View.GONE);
                     bind.getRoot().findViewById(R.id.player_skip_silence_toggle_button).setVisibility(View.GONE);
                     bind.getRoot().findViewById(R.id.button_favorite).setVisibility(View.GONE);
+                    bind.getRoot().findViewById(R.id.button_dislike).setVisibility(View.GONE);
                     setPlaybackParameters(mediaBrowser);
                     break;
                 case Constants.MEDIA_TYPE_MUSIC:
@@ -740,6 +751,7 @@ public class PlayerControllerFragment extends Fragment {
                     bind.getRoot().findViewById(R.id.player_playback_speed_button).setVisibility(View.VISIBLE);
                     bind.getRoot().findViewById(R.id.player_skip_silence_toggle_button).setVisibility(View.GONE);
                     bind.getRoot().findViewById(R.id.button_favorite).setVisibility(View.VISIBLE);
+                    bind.getRoot().findViewById(R.id.button_dislike).setVisibility(View.VISIBLE);
                     setPlaybackParameters(mediaBrowser);
                     break;
             }
@@ -884,6 +896,13 @@ public class PlayerControllerFragment extends Fragment {
         ImageViewCompat.setImageTintList(playerOpenQueueButton, ColorStateList.valueOf(color));
     }
 
+    private int currentRatingFor(Child media) {
+        return RatingRegistry.resolve(
+                media.getId(),
+                media.getUserRating() != null ? media.getUserRating() : RatingRepository.NO_RATING
+        );
+    }
+
     private void initMediaListenable() {
         playerBottomSheetViewModel.getLiveMedia().observe(getViewLifecycleOwner(), media -> {
             if (media != null) {
@@ -893,6 +912,14 @@ public class PlayerControllerFragment extends Fragment {
                 ratingViewModel.setSong(media);
                 buttonFavorite.setChecked(FavoriteRegistry.resolve(FavoriteRegistry.Kind.SONG, media.getId(), media.getStarred() != null));
                 buttonFavorite.setOnClickListener(v -> playerBottomSheetViewModel.setFavorite(requireContext(), media));
+
+                buttonDislike.setChecked(currentRatingFor(media) == RatingRepository.DISLIKE);
+                buttonDislike.setOnClickListener(v -> {
+                    playerBottomSheetViewModel.setDislike(media);
+                    int rating = currentRatingFor(media);
+                    buttonDislike.setChecked(rating == RatingRepository.DISLIKE);
+                    songRatingBar.setRating(rating);
+                });
                 buttonFavorite.setOnLongClickListener(v -> {
                     Bundle bundle = new Bundle();
                     bundle.putParcelable(Constants.TRACK_OBJECT, media);
@@ -904,20 +931,16 @@ public class PlayerControllerFragment extends Fragment {
                     return true;
                 });
 
-                Integer currentRating = media.getUserRating();
-
-                if (currentRating != null) {
-                    songRatingBar.setRating(currentRating);
-                } else {
-                    songRatingBar.setRating(0);
-                }
+                int currentRating = currentRatingFor(media);
+                songRatingBar.setRating(currentRating);
 
                 songRatingBar.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
                     @Override
                     public void onRatingChanged(RatingBar ratingBar, float rating, boolean fromUser) {
                         if (fromUser) {
-                            ratingViewModel.rate((int) rating);
-                            media.setUserRating((int) rating);
+                            int newRating = (int) rating;
+                            playerBottomSheetViewModel.setSongRating(media, newRating);
+                            buttonDislike.setChecked(newRating == RatingRepository.DISLIKE);
                         }
                     }
                 });

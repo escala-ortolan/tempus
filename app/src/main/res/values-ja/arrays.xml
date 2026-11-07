@@ -365,12 +365,14 @@
     </string-array>
     <string-array name="custom_commands_titles">
         <item>ハート</item>
+        <item>低評価</item>
         <item>リピート</item>
         <item>シャッフル</item>
         <item>インスタントミックス</item>
     </string-array>
     <string-array name="custom_commands_values" translatable="false">
         <item>[heartID]</item>
+        <item>[dislikeID]</item>
         <item>[repeatID]</item>
         <item>[shuffleID]</item>
         <item>[instantMixID]</item>

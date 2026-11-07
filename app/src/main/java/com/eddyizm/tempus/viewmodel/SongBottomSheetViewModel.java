@@ -11,11 +11,13 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.media3.common.util.UnstableApi;
 
 import com.eddyizm.tempus.interfaces.MediaCallback;
+import com.eddyizm.tempus.interfaces.RatingCallback;
 import com.eddyizm.tempus.interfaces.StarCallback;
 import com.eddyizm.tempus.model.Download;
 import com.eddyizm.tempus.repository.AlbumRepository;
 import com.eddyizm.tempus.repository.ArtistRepository;
 import com.eddyizm.tempus.repository.FavoriteRepository;
+import com.eddyizm.tempus.repository.RatingRepository;
 import com.eddyizm.tempus.repository.SharingRepository;
 import com.eddyizm.tempus.repository.SongRepository;
 import com.eddyizm.tempus.subsonic.models.AlbumID3;
@@ -28,6 +30,7 @@ import com.eddyizm.tempus.util.MappingUtil;
 import com.eddyizm.tempus.util.NetworkUtil;
 import com.eddyizm.tempus.util.Preferences;
 import com.eddyizm.tempus.util.FavoriteRegistry;
+import com.eddyizm.tempus.util.RatingRegistry;
 
 import java.util.Collections;
 import java.util.Date;
@@ -98,6 +101,29 @@ public class SongBottomSheetViewModel extends AndroidViewModel {
     private void setFavoriteOffline(Child media) {
         favoriteRepository.starLater(media.getId(), null, null, true);
         media.setStarred(new Date());
+    }
+
+    /** The dislike flag is the standard 1-star rating, so Navidrome and other servers see it. */
+    public void setDislike() {
+        if (song == null) return;
+
+        int currentRating = RatingRegistry.resolve(
+                song.getId(),
+                song.getUserRating() != null ? song.getUserRating() : RatingRepository.NO_RATING
+        );
+        int nextRating = currentRating == RatingRepository.DISLIKE
+                ? RatingRepository.NO_RATING
+                : RatingRepository.DISLIKE;
+
+        int previousRating = song.getUserRating() != null ? song.getUserRating() : RatingRepository.NO_RATING;
+        song.setUserRating(nextRating > RatingRepository.NO_RATING ? nextRating : null);
+
+        songRepository.setRating(song.getId(), nextRating, new RatingCallback() {
+            @Override
+            public void onError() {
+                song.setUserRating(previousRating > RatingRepository.NO_RATING ? previousRating : null);
+            }
+        });
     }
 
     private void setFavoriteOnline(Context context, Child media) {

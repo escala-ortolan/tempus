@@ -14,6 +14,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.media3.common.util.UnstableApi;
 
+import com.eddyizm.tempus.interfaces.RatingCallback;
 import com.eddyizm.tempus.interfaces.StarCallback;
 import com.eddyizm.tempus.model.Download;
 import com.eddyizm.tempus.model.LyricsCache;
@@ -24,6 +25,7 @@ import com.eddyizm.tempus.repository.FavoriteRepository;
 import com.eddyizm.tempus.repository.LyricsRepository;
 import com.eddyizm.tempus.repository.OpenRepository;
 import com.eddyizm.tempus.repository.QueueRepository;
+import com.eddyizm.tempus.repository.RatingRepository;
 import com.eddyizm.tempus.repository.SongRepository;
 import com.eddyizm.tempus.subsonic.models.AlbumID3;
 import com.eddyizm.tempus.subsonic.models.ArtistID3;
@@ -37,6 +39,7 @@ import com.eddyizm.tempus.util.NetworkUtil;
 import com.eddyizm.tempus.util.OpenSubsonicExtensionsUtil;
 import com.eddyizm.tempus.util.Preferences;
 import com.eddyizm.tempus.util.FavoriteRegistry;
+import com.eddyizm.tempus.util.RatingRegistry;
 import com.google.gson.Gson;
 
 import java.util.Collections;
@@ -122,6 +125,35 @@ public class PlayerBottomSheetViewModel extends AndroidViewModel {
     private void setFavoriteOffline(Child media) {
         favoriteRepository.starLater(media.getId(), null, null, true);
         media.setStarred(new Date());
+    }
+
+    /** The dislike flag is the standard 1-star rating, so Navidrome and other servers see it. */
+    public void setDislike(Child media) {
+        if (media == null) return;
+
+        int currentRating = RatingRegistry.resolve(
+                media.getId(),
+                media.getUserRating() != null ? media.getUserRating() : RatingRepository.NO_RATING
+        );
+        int nextRating = currentRating == RatingRepository.DISLIKE
+                ? RatingRepository.NO_RATING
+                : RatingRepository.DISLIKE;
+
+        setSongRating(media, nextRating);
+    }
+
+    public void setSongRating(Child media, int rating) {
+        if (media == null) return;
+
+        int previousRating = media.getUserRating() != null ? media.getUserRating() : RatingRepository.NO_RATING;
+        media.setUserRating(rating > RatingRepository.NO_RATING ? rating : null);
+
+        songRepository.setRating(media.getId(), rating, new RatingCallback() {
+            @Override
+            public void onError() {
+                media.setUserRating(previousRating > RatingRepository.NO_RATING ? previousRating : null);
+            }
+        });
     }
 
     private void setFavoriteOnline(Context context, Child media) {

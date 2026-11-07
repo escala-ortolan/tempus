@@ -387,6 +387,7 @@
 
     <string-array name="custom_commands_titles">
         <item>Ürək</item>
+        <item>Dislike</item>
         <item>Təkrarla</item>
         <item>Qarışdır</item>
         <item>Ani qarışıq</item>

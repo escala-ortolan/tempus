@@ -26,6 +26,7 @@ import com.eddyizm.tempus.R;
 import com.eddyizm.tempus.glide.CustomGlideRequest;
 import com.eddyizm.tempus.model.Download;
 import com.eddyizm.tempus.repository.PlaylistRepository;
+import com.eddyizm.tempus.repository.RatingRepository;
 import com.eddyizm.tempus.service.MediaManager;
 import com.eddyizm.tempus.service.MediaService;
 import com.eddyizm.tempus.subsonic.models.Child;
@@ -39,6 +40,7 @@ import com.eddyizm.tempus.util.ExternalAudioReader;
 import com.eddyizm.tempus.util.MappingUtil;
 import com.eddyizm.tempus.util.MusicUtil;
 import com.eddyizm.tempus.util.Preferences;
+import com.eddyizm.tempus.util.RatingRegistry;
 import com.eddyizm.tempus.viewmodel.HomeViewModel;
 import com.eddyizm.tempus.viewmodel.PlaylistPageViewModel;
 import com.eddyizm.tempus.viewmodel.SongBottomSheetViewModel;
@@ -118,6 +120,15 @@ public class SongBottomSheetDialog extends BottomSheetDialogFragment implements 
         super.onStop();
     }
 
+    private boolean isDisliked() {
+        Child current = songBottomSheetViewModel.getSong();
+        if (current == null) return false;
+        return RatingRegistry.resolve(
+                current.getId(),
+                current.getUserRating() != null ? current.getUserRating() : RatingRepository.NO_RATING
+        ) == RatingRepository.DISLIKE;
+    }
+
     private void init(View view) {
         ImageView coverSong = view.findViewById(R.id.song_cover_image_view);
         CustomGlideRequest.Builder
@@ -137,6 +148,13 @@ public class SongBottomSheetDialog extends BottomSheetDialogFragment implements 
         bindAssetLinkView(coverSong, currentSongLink);
         bindAssetLinkView(titleSong, currentSongLink);
         bindAssetLinkView(artistSong, currentArtistLink != null ? currentArtistLink : currentSongLink);
+
+        ToggleButton dislikeToggle = view.findViewById(R.id.button_dislike);
+        dislikeToggle.setChecked(isDisliked());
+        dislikeToggle.setOnClickListener(v -> {
+            songBottomSheetViewModel.setDislike();
+            dislikeToggle.setChecked(isDisliked());
+        });
 
         ToggleButton favoriteToggle = view.findViewById(R.id.button_favorite);
         favoriteToggle.setChecked(FavoriteRegistry.resolve(FavoriteRegistry.Kind.SONG, songBottomSheetViewModel.getSong().getId(), songBottomSheetViewModel.getSong().getStarred() != null));

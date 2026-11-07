@@ -27,6 +27,7 @@
 - [Controlling another phone](#controlling-another-phone)
 - [Favorites](#favorites)
     - [Favorites (aka heart aka star) to albums and artists](#favorites-aka-heart-aka-star-to-albums-and-artists)
+    - [Dislikes and cleanup](#dislikes-and-cleanup)
 - [Playlist Management](#playlist-management)
     - [Editing a playlist](#editing-a-playlist)
     - [Sorting playlists](#sorting-playlists)
@@ -40,6 +41,7 @@
     - [Backing up settings](#backing-up-settings)
 - [Android Auto](#android-auto)
     - [Enabling on your head unit](#enabling-on-your-head-unit)
+    - [Player buttons](#player-buttons)
     - [Tabs](#tabs)
     - [Bundles](#bundles)
     - [Thumbnails or lists](#thumbnails-or-lists)
@@ -361,6 +363,24 @@ Connections use mutual TLS, and each phone is approved by hand. There is no unen
     <img src="mockup/usage/fave_artist.png" width=376>
 </p>
 
+### Dislikes and cleanup
+
+The thumbs-down button next to the heart marks the current track as disliked. Subsonic has no separate dislike field, so Tempus writes the standard 1-star rating with `setRating(id, 1)`. Tapping the same button again removes the rating (`setRating(id, 0)`). The rating also appears in the player's star bar and in Navidrome's web interface.
+
+A track's rating and its heart are independent. If a cleanup script should never remove a hearted track, skip rows where `starred` is set:
+
+```sql
+-- Navidrome database: list the files whose tracks the user disliked.
+SELECT mf.path
+FROM media_file mf
+JOIN annotation a ON a.item_id = mf.id AND a.item_type = 'media_file'
+WHERE a.user_id = '<user-id>'
+  AND a.rating = 1
+  AND (a.starred IS NULL OR a.starred = 0);
+```
+
+Run that list through your own review step before deleting anything; a 1-star rating is also what the normal star bar writes when you rate a track 1 out of 5. Use Navidrome's own user ID from the `user` table.
+
 [Back to top](#table-of-contents)
 
 ## Playlist Management
@@ -482,6 +502,12 @@ To allow the Tempus app on your car's head unit, "Unknown sources" needs to be e
 <p align="left">
    <img width="270" height="600" alt="3" src="https://github.com/user-attachments/assets/37db88e9-1b76-417f-9c47-da9f3a750fff" />
 </p>
+
+### Player buttons
+
+On the car's now-playing screen, Tempus adds **Heart** and **Dislike** to the player's overflow menu. Dislike writes the same 1-star rating as the thumbs-down button in the phone app, so a disliked track is visible to Navidrome and to the cleanup script above. The **First custom command** and **Second custom command** settings under **Settings → Players** choose which actions are offered first; the remaining actions are still available in the overflow menu.
+
+If the buttons do not appear at all, check that the head unit is connected as an Android Auto controller (the `app-tempus` build is required) and that the car screen is showing the player, not a browse list. Android Auto does not support per-row action buttons in browse lists; liking or disliking is done from the now-playing screen.
 
 ### Tabs
 

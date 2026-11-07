@@ -61,6 +61,7 @@ import com.eddyizm.tempus.util.FavoriteRegistry
 import com.eddyizm.tempus.util.MusicUtil
 import com.eddyizm.tempus.util.Preferences
 import com.eddyizm.tempus.util.RadioCoverArtDownloader
+import com.eddyizm.tempus.util.RatingRegistry
 
 private class StateHolder<T>(var value: T? = null)
 
@@ -109,7 +110,7 @@ fun PlayerQueueItem(
     val isStarred = remember(item.song.id, item.song.starred) {
         FavoriteRegistry.resolve(FavoriteRegistry.Kind.SONG, item.song.id, item.song.starred != null)
     }
-    val rating = item.song.userRating ?: 0
+    val rating = RatingRegistry.resolve(item.song.id, item.song.userRating ?: 0)
 
     val durationStr = remember(item.song.duration) {
         MusicUtil.getReadableDurationString(item.song.duration, false)

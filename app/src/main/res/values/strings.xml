@@ -163,6 +163,9 @@
     </plurals>
     <string name="exo_controls_heart_off_description">Toggle Heart off</string>
     <string name="exo_controls_heart_on_description">Toggle Heart on</string>
+    <string name="exo_controls_dislike_off_description">Dislike (rate 1 star)</string>
+    <string name="exo_controls_dislike_on_description">Remove dislike</string>
+    <string name="dislike_button_description">Dislike</string>
     <string name="cast_expanded_controller_loading">Loading…</string>
     <string name="filter_info_selection">Select two or more filters</string>
     <string name="filter_title">Filter</string>

@@ -119,7 +119,7 @@ public class MappingUtil {
             bundle.putInt("bitDepth", effective.getBitDepth() != null ? effective.getBitDepth() : 0);
             bundle.putString("path", effective.getPath());
             bundle.putBoolean("isVideo", effective.isVideo());
-            bundle.putInt("userRating", media.getUserRating() != null ? media.getUserRating() : 0);
+            bundle.putInt("userRating", RatingRegistry.resolve(media.getId(), media.getUserRating() != null ? media.getUserRating() : 0));
             bundle.putDouble("averageRating", media.getAverageRating() != null ? media.getAverageRating() : 0);
             bundle.putLong("playCount", media.getPlayCount() != null ? media.getPlayCount() : 0);
             bundle.putInt("discNumber", media.getDiscNumber() != null ? media.getDiscNumber() : 0);
@@ -161,7 +161,9 @@ public class MappingUtil {
                                     .setSupportedCommands(
                                         ImmutableList.of(
                                                 Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
-                                                Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF
+                                                Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF,
+                                                Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_ON,
+                                                Constants.CUSTOM_COMMAND_TOGGLE_DISLIKE_OFF
                                         )
                                     )
                                     .setExtras(bundle)

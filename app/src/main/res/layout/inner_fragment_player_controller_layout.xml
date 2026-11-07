@@ -124,7 +124,7 @@
         android:singleLine="true"
         android:text="@string/label_placeholder"
         android:textSize="@dimen/_20sdp"
-        app:layout_constraintEnd_toStartOf="@+id/button_favorite"
+        app:layout_constraintEnd_toStartOf="@+id/button_dislike"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/rating_container" />
 
@@ -140,7 +140,7 @@
         android:textSize="@dimen/_14sdp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:text="@string/label_placeholder"
-        app:layout_constraintEnd_toStartOf="@+id/button_favorite"
+        app:layout_constraintEnd_toStartOf="@+id/button_dislike"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/player_media_title_label" />
 
@@ -176,6 +176,22 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:text=""/>
     </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatToggleButton
+        android:id="@+id/button_dislike"
+        android:layout_width="@dimen/_20sdp"
+        android:layout_height="@dimen/_20sdp"
+        android:layout_marginEnd="@dimen/_8sdp"
+        android:background="@drawable/button_dislike_selector"
+        android:checked="false"
+        android:contentDescription="@string/dislike_button_description"
+        android:text=""
+        android:textOff=""
+        android:textOn=""
+        app:layout_constraintBottom_toBottomOf="@+id/player_media_title_label"
+        app:layout_constraintEnd_toStartOf="@id/button_favorite"
+        app:layout_constraintTop_toTopOf="@+id/player_media_title_label"
+        app:tint="?attr/colorPrimary"/>
 
     <androidx.appcompat.widget.AppCompatToggleButton
         android:id="@+id/button_favorite"

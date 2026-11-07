@@ -746,7 +746,7 @@ object Preferences {
 
     @JvmStatic
     fun getCustomCommandSecondButton(): String? {
-        return App.getInstance().preferences.getString(CUSTOM_COMMAND_SECOND_BUTTON, "[repeatID]")
+        return App.getInstance().preferences.getString(CUSTOM_COMMAND_SECOND_BUTTON, "[dislikeID]")
     }
 
     @JvmStatic

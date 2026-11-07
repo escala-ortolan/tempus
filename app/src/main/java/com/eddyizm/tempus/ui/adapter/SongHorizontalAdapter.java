@@ -33,6 +33,7 @@ import com.eddyizm.tempus.util.MappingUtil;
 import com.eddyizm.tempus.util.MusicUtil;
 import com.eddyizm.tempus.util.Preferences;
 import com.eddyizm.tempus.util.FavoriteRegistry;
+import com.eddyizm.tempus.util.RatingRegistry;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.ArrayList;
@@ -210,17 +211,18 @@ public class SongHorizontalAdapter extends RecyclerView.Adapter<SongHorizontalAd
 
         if (Preferences.showItemRating()) {
             boolean isStarred = FavoriteRegistry.resolve(FavoriteRegistry.Kind.SONG, song.getId(), song.getStarred() != null);
-            holder.item.ratingIndicatorImageView.setVisibility(isStarred || song.getUserRating() != null ? View.VISIBLE : View.GONE);
+            int rating = RatingRegistry.resolve(song.getId(), song.getUserRating() != null ? song.getUserRating() : 0);
+            holder.item.ratingIndicatorImageView.setVisibility(isStarred || rating > 0 ? View.VISIBLE : View.GONE);
 
             holder.item.preferredIcon.setVisibility(isStarred ? View.VISIBLE : View.GONE);
-            holder.item.ratingBarLayout.setVisibility(song.getUserRating() != null ? View.VISIBLE : View.GONE);
+            holder.item.ratingBarLayout.setVisibility(rating > 0 ? View.VISIBLE : View.GONE);
 
-            if (song.getUserRating() != null) {
-                holder.item.oneStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), song.getUserRating() >= 1 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
-                holder.item.twoStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), song.getUserRating() >= 2 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
-                holder.item.threeStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), song.getUserRating() >= 3 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
-                holder.item.fourStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), song.getUserRating() >= 4 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
-                holder.item.fiveStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), song.getUserRating() >= 5 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
+            if (rating > 0) {
+                holder.item.oneStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), rating >= 1 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
+                holder.item.twoStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), rating >= 2 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
+                holder.item.threeStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), rating >= 3 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
+                holder.item.fourStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), rating >= 4 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
+                holder.item.fiveStarIcon.setImageDrawable(AppCompatResources.getDrawable(holder.itemView.getContext(), rating >= 5 ? R.drawable.ic_star : R.drawable.ic_star_outlined));
             }
         } else {
             holder.item.ratingIndicatorImageView.setVisibility(View.GONE);

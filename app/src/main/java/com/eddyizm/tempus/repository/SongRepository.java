@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
 
 import com.eddyizm.tempus.App;
+import com.eddyizm.tempus.interfaces.RatingCallback;
 import com.eddyizm.tempus.subsonic.base.ApiResponse;
 import com.eddyizm.tempus.subsonic.models.Child;
 import com.eddyizm.tempus.subsonic.models.SubsonicResponse;
@@ -346,10 +347,11 @@ public class SongRepository {
     }
 
     public void setRating(String id, int rating) {
-        App.getSubsonicClientInstance(false).getMediaAnnotationClient().setRating(id, rating).enqueue(new Callback<ApiResponse>() {
-            @Override public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {}
-            @Override public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {}
-        });
+        setRating(id, rating, null);
+    }
+
+    public void setRating(String id, int rating, RatingCallback callback) {
+        new RatingRepository().setRating(id, rating, callback);
     }
 
     public MutableLiveData<List<Child>> getSongsByGenre(String id, int page) {

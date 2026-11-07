@@ -371,12 +371,14 @@
 
     <string-array name="custom_commands_titles">
         <item>Cor</item>
+        <item>No m\'agrada</item>
         <item>Repeteix</item>
         <item>Reprodueix aleatòriament</item>
         <item>Mescla instantània</item>
     </string-array>
     <string-array name="custom_commands_values" translatable="false">
         <item>[heartID]</item>
+        <item>[dislikeID]</item>
         <item>[repeatID]</item>
         <item>[shuffleID]</item>
         <item>[instantMixID]</item>

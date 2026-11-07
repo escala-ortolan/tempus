@@ -355,6 +355,7 @@
     </string-array>
     <string-array name="custom_commands_titles">
         <item>Herz</item>
+        <item>Gefällt mir nicht</item>
         <item>Wiederholen</item>
         <item>Zufällig</item>
         <item>Sofort-Mix</item>
